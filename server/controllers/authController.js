@@ -1,8 +1,10 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs'; // 确保已安装并引入
 
 // 注册控制器
 export const registerUser = async (req, res) => {
+    console.log('registerUser controller hit ✅');
     try {
         const { username, email, password } = req.body;
 
@@ -37,7 +39,40 @@ export const registerUser = async (req, res) => {
     }
 };
 
-// 登录控制器（后面再填）
+
 export const loginUser = async (req, res) => {
-    res.send('login logic here');
+    try {
+        const { email, password } = req.body;
+
+        // 查找用户
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // 比对密码
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // 生成 token
+        const token = jwt.sign(
+            { userId: user._id, username: user.username },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+            },
+        });
+    } catch (err) {
+        console.error('Login Error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
 };
