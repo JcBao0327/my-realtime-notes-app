@@ -26,6 +26,7 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    avatar: { type: String },
 });
 
 // 加密密码 (注册或修改密码时自动触发)

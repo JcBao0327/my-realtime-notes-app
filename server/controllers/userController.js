@@ -1,6 +1,8 @@
-
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
+import { v2 as cloudinary } from 'cloudinary';
+import streamifier from 'streamifier';
+
 
 // 获取当前用户信息
 export const getCurrentUser = async (req, res) => {
@@ -41,5 +43,45 @@ export const changePassword = async (req, res) => {
         res.json({ message: 'Password changed successfully' });
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const updateAvatar = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        // 上传函数封装为 Promise
+        const streamUpload = (buffer) => {
+            return new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { folder: 'avatars' },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        resolve(result);
+                    }
+                );
+                streamifier.createReadStream(buffer).pipe(stream);
+            });
+        };
+
+        // 执行上传
+        const result = await streamUpload(req.file.buffer);
+
+        // 更新数据库中的头像字段
+        const user = await User.findByIdAndUpdate(
+            req.user.userId,
+            { avatar: result.secure_url },
+            { new: true }
+        );
+
+        res.status(200).json({
+            message: 'Avatar updated successfully',
+            avatar: user.avatar,
+        });
+    } catch (err) {
+        console.error('Avatar upload error:', err);
+        res.status(500).json({ message: 'Upload failed' });
     }
 };
